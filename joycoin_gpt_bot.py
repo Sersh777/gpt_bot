@@ -74,6 +74,7 @@ def handle_message(message):
 if __name__ == "__main__":
     while True:
         try:
+            print('Бот стартовал!')
             bot.polling(none_stop=True, timeout=60)
         except Exception as e:
             print(f"Ошибка бота: {e}")
