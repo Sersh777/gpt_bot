@@ -1,7 +1,10 @@
 import g4f
 from telebot import TeleBot
-import time
+from flask import Flask, request
+import os
+import telebot
 
+app = Flask(__name__)
 bot = TeleBot('7934431830:AAEWOvAQfq7LT72TMFRT5M_7mVmYssqiNOY')
 
 SYSTEM_PROMPT = """
@@ -31,13 +34,24 @@ If user writes in Russian - respond in Russian.
 Format your responses using HTML tags (<b>, <i>, <code>, etc).
 Give brief and clear answers."""
 
+@app.route('/' + bot.token, methods=['POST'])
+def webhook():
+    update = request.get_json()
+    if update:
+        update = telebot.types.Update.de_json(update)
+        bot.process_new_updates([update])
+    return 'ok'
+
+@app.route('/')
+def health():
+    return 'Bot is running'
+
 @bot.message_handler(commands=['start'])
 def main(message):
     bot.send_message(message.chat.id, '<b>Привет! Я ассистент бота JoyCoinGPT. Задавайте любые вопросы о работе с ботом, и я помогу разобраться!</b>', parse_mode='HTML')
 
 @bot.message_handler(func=lambda message: True)
 def handle_message(message):    
-
     bot.send_chat_action(message.chat.id, 'typing')
     
     response = g4f.ChatCompletion.create(
@@ -65,17 +79,15 @@ def handle_message(message):
                     if i + 1 < len(code_blocks):
                         formatted_response += code_blocks[i + 1]
         
-
-        bot.send_message(message.chat.id, formatted_response, parse_mode='HTML')
+        try:
+            bot.send_message(message.chat.id, formatted_response, parse_mode='HTML')
+        except:
+            bot.send_message(message.chat.id, response)
     else:
         bot.send_message(message.chat.id, "<b>Извините, не удалось получить ответ. Попробуйте еще раз.</b>", parse_mode='HTML')
 
-
 if __name__ == "__main__":
-    while True:
-        try:
-            print('Бот стартовал!')
-            bot.polling(none_stop=True, timeout=60)
-        except Exception as e:
-            print(f"Ошибка бота: {e}")
-            time.sleep(15)
+    port = int(os.environ.get('PORT', 8080))
+    
+    print('Бот запущен!')
+    app.run(host='0.0.0.0', port=port)
