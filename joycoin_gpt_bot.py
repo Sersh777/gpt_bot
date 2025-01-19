@@ -2,7 +2,8 @@ import g4f
 from telebot import TeleBot
 from flask import Flask, request
 import os
-import telebot
+import threading
+import time
 
 app = Flask(__name__)
 bot = TeleBot('7934431830:AAEWOvAQfq7LT72TMFRT5M_7mVmYssqiNOY')
@@ -34,16 +35,8 @@ If user writes in Russian - respond in Russian.
 Format your responses using HTML tags (<b>, <i>, <code>, etc).
 Give brief and clear answers."""
 
-@app.route('/' + bot.token, methods=['POST'])
-def webhook():
-    update = request.get_json()
-    if update:
-        update = telebot.types.Update.de_json(update)
-        bot.process_new_updates([update])
-    return 'ok'
-
 @app.route('/')
-def health():
+def home():
     return 'Bot is running'
 
 @bot.message_handler(commands=['start'])
@@ -86,8 +79,18 @@ def handle_message(message):
     else:
         bot.send_message(message.chat.id, "<b>Извините, не удалось получить ответ. Попробуйте еще раз.</b>", parse_mode='HTML')
 
+def bot_polling():
+    while True:
+        try:
+            bot.polling(none_stop=True)
+        except Exception as e:
+            print(f"Bot polling error: {e}")
+            time.sleep(15)
+
 if __name__ == "__main__":
-    port = int(os.environ.get('PORT', 8080))
+    polling_thread = threading.Thread(target=bot_polling)
+    polling_thread.daemon = True
+    polling_thread.start()
     
-    print('Бот запущен!')
+    port = int(os.environ.get('PORT', 8080))
     app.run(host='0.0.0.0', port=port)
