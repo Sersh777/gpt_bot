@@ -1,12 +1,8 @@
 import g4f
 from telebot import TeleBot
-from flask import Flask, request
 import os
 import time
-import threading
-import requests
 
-app = Flask(__name__)
 bot = TeleBot('7934431830:AAEWOvAQfq7LT72TMFRT5M_7mVmYssqiNOY')
 
 SYSTEM_PROMPT = """
@@ -35,24 +31,6 @@ If user writes in Russian - respond in Russian.
 
 Format your responses using HTML tags (<b>, <i>, <code>, etc).
 Give brief and clear answers."""
-
-def keep_alive():
-    while True:
-        try:
-            url = "http://10.217.208.241:10000/" 
-            requests.get(url)
-            print("Ping sent")
-        except Exception as e:
-            print(f"Ping error: {e}")
-        time.sleep(30) 
-
-@app.route('/')
-def home():
-    return 'Bot is running'
-
-@app.route('/ping')
-def ping():
-    return 'pong'
 
 @bot.message_handler(commands=['start'])
 def main(message):
@@ -105,13 +83,4 @@ def bot_polling():
             time.sleep(15)
 
 if __name__ == "__main__":
-    polling_thread = threading.Thread(target=bot_polling)
-    polling_thread.daemon = True
-    polling_thread.start()
-    
-    ping_thread = threading.Thread(target=keep_alive)
-    ping_thread.daemon = True
-    ping_thread.start()
-    
-    port = int(os.environ.get('PORT', 8000))
-    app.run(host='0.0.0.0', port=port)
+    bot_polling()
