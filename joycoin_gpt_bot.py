@@ -39,7 +39,7 @@ Give brief and clear answers."""
 def keep_alive():
     while True:
         try:
-            url = "https://" 
+            url = "http://10.217.208.241:10000/" 
             requests.get(url)
             print("Ping sent")
         except Exception as e:
