@@ -2,8 +2,9 @@ import g4f
 from telebot import TeleBot
 from flask import Flask, request
 import os
-import threading
 import time
+import threading
+import requests
 
 app = Flask(__name__)
 bot = TeleBot('7934431830:AAEWOvAQfq7LT72TMFRT5M_7mVmYssqiNOY')
@@ -35,9 +36,23 @@ If user writes in Russian - respond in Russian.
 Format your responses using HTML tags (<b>, <i>, <code>, etc).
 Give brief and clear answers."""
 
+def keep_alive():
+    while True:
+        try:
+            url = "https://" 
+            requests.get(url)
+            print("Ping sent")
+        except Exception as e:
+            print(f"Ping error: {e}")
+        time.sleep(300) 
+
 @app.route('/')
 def home():
     return 'Bot is running'
+
+@app.route('/ping')
+def ping():
+    return 'pong'
 
 @bot.message_handler(commands=['start'])
 def main(message):
@@ -45,39 +60,41 @@ def main(message):
 
 @bot.message_handler(func=lambda message: True)
 def handle_message(message):    
-    bot.send_chat_action(message.chat.id, 'typing')
-    
-    response = g4f.ChatCompletion.create(
-        model=g4f.models.gpt_35_turbo,
-        messages=[
-            {"role": "system", "content": SYSTEM_PROMPT},
-            {"role": "user", "content": message.text}
-        ],
-        stream=False
-    )
-    
-    if response:
-        formatted_response = response
-        if '```' in response:
-            code_blocks = response.split('```')
-            formatted_response = code_blocks[0]  
+    try:
+        bot.send_chat_action(message.chat.id, 'typing')
+        response = g4f.ChatCompletion.create(
+            model=g4f.models.gpt_35_turbo,
+            messages=[
+                {"role": "system", "content": SYSTEM_PROMPT},
+                {"role": "user", "content": message.text}
+            ],
+            stream=False
+        )
+        if response:
+            formatted_response = response
+            if '```' in response:
+                code_blocks = response.split('```')
+                formatted_response = code_blocks[0]  
+                
+                for i in range(1, len(code_blocks), 2):
+                    if i < len(code_blocks):
+                        code = code_blocks[i].strip()
+                        if code.startswith('python'):
+                            code = code[6:] 
+                        formatted_response += f'<pre><code>{code}</code></pre>'
+                        
+                        if i + 1 < len(code_blocks):
+                            formatted_response += code_blocks[i + 1]
             
-            for i in range(1, len(code_blocks), 2):
-                if i < len(code_blocks):
-                    code = code_blocks[i].strip()
-                    if code.startswith('python'):
-                        code = code[6:] 
-                    formatted_response += f'<pre><code>{code}</code></pre>'
-                    
-                    if i + 1 < len(code_blocks):
-                        formatted_response += code_blocks[i + 1]
-        
-        try:
-            bot.send_message(message.chat.id, formatted_response, parse_mode='HTML')
-        except:
-            bot.send_message(message.chat.id, response)
-    else:
-        bot.send_message(message.chat.id, "<b>Извините, не удалось получить ответ. Попробуйте еще раз.</b>", parse_mode='HTML')
+            try:
+                bot.send_message(message.chat.id, formatted_response, parse_mode='HTML')
+            except:
+                bot.send_message(message.chat.id, response)
+        else:
+            bot.send_message(message.chat.id, "<b>Извините, не удалось получить ответ. Попробуйте еще раз.</b>", parse_mode='HTML')
+    except Exception as e:
+        print(f"Error: {e}")
+        bot.send_message(message.chat.id, "<b>Произошла ошибка. Попробуйте позже.</b>", parse_mode='HTML')
 
 def bot_polling():
     while True:
@@ -92,5 +109,9 @@ if __name__ == "__main__":
     polling_thread.daemon = True
     polling_thread.start()
     
-    port = int(os.environ.get('PORT', 8080))
+    ping_thread = threading.Thread(target=keep_alive)
+    ping_thread.daemon = True
+    ping_thread.start()
+    
+    port = int(os.environ.get('PORT', 8000))
     app.run(host='0.0.0.0', port=port)
