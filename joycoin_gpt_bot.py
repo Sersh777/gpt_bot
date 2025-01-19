@@ -44,7 +44,7 @@ def keep_alive():
             print("Ping sent")
         except Exception as e:
             print(f"Ping error: {e}")
-        time.sleep(300) 
+        time.sleep(30) 
 
 @app.route('/')
 def home():
